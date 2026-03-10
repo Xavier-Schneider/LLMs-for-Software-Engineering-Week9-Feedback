@@ -195,243 +195,182 @@
   </div>
 </div>
 
-<script>
-(() => {
-  const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
-  const overlay = document.getElementById('overlay');
-  const overlayTitle = document.getElementById('overlay-title');
-  const overlaySub = document.getElementById('overlay-sub');
-  const overlayScoreEl = document.getElementById('overlay-score');
-  const scoreEl = document.getElementById('score');
-  const highscoreEl = document.getElementById('highscore');
+<script type="module">
+import { createGame, KEY_MAP } from './snake.js';
 
-  const CELL = 20;
-  const COLS = canvas.width / CELL;
-  const ROWS = canvas.height / CELL;
-  const BASE_INTERVAL = 120;
-  const SPEED_INCREASE = 2;
-  const MIN_INTERVAL = 55;
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlay-title');
+const overlaySub = document.getElementById('overlay-sub');
+const overlayScoreEl = document.getElementById('overlay-score');
+const scoreEl = document.getElementById('score');
+const highscoreEl = document.getElementById('highscore');
 
-  let snake, direction, nextDirection, food, score, highScore, gameState, interval, lastTick;
+const CELL = 20;
+const COLS = canvas.width / CELL;
+const ROWS = canvas.height / CELL;
 
-  highScore = parseInt(localStorage.getItem('snake-highscore') || '0', 10);
-  highscoreEl.textContent = highScore;
+const game = createGame(COLS, ROWS);
+const { state } = game;
 
-  function init() {
-    const midX = Math.floor(COLS / 2);
-    const midY = Math.floor(ROWS / 2);
-    snake = [
-      { x: midX, y: midY },
-      { x: midX - 1, y: midY },
-      { x: midX - 2, y: midY },
-    ];
-    direction = { x: 0, y: 0 };
-    nextDirection = { x: 0, y: 0 };
-    score = 0;
-    interval = BASE_INTERVAL;
-    scoreEl.textContent = '0';
-    placeFood();
-  }
+state.highScore = parseInt(localStorage.getItem('snake-highscore') || '0', 10);
+highscoreEl.textContent = state.highScore;
 
-  function placeFood() {
-    const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
-    let pos;
-    do {
-      pos = { x: Math.ceil(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
-    } while (occupied.has(`${pos.x},${pos.y}`));
-    food = pos;
-  }
+let lastTick = null;
 
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    for (let x = 0; x < COLS; x++) {
-      for (let y = 0; y < ROWS; y++) {
-        if ((x + y) % 2 === 0) {
-          ctx.fillStyle = 'rgba(255,255,255,0.015)';
-          ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
-        }
+  for (let x = 0; x < COLS; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      if ((x + y) % 2 === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.015)';
+        ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
       }
     }
+  }
 
-    ctx.fillStyle = '#ff5252';
-    ctx.shadowColor = '#ff5252';
-    ctx.shadowBlur = 12;
-    const fPad = 3;
-    ctx.beginPath();
-    ctx.arc(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2, (CELL - fPad * 2) / 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#ff5252';
+  ctx.shadowColor = '#ff5252';
+  ctx.shadowBlur = 12;
+  const fPad = 3;
+  ctx.beginPath();
+  ctx.arc(state.food.x * CELL + CELL / 2, state.food.y * CELL + CELL / 2, (CELL - fPad * 2) / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  state.snake.forEach((seg, i) => {
+    const t = 1 - i / state.snake.length;
+    const r = Math.round(0 + t * 0);
+    const g = Math.round(140 + t * 90);
+    const b = Math.round(80 + t * 38);
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+
+    const pad = i === 0 ? 1 : 2;
+    const radius = i === 0 ? 5 : 3;
+    roundRect(ctx, seg.x * CELL + pad, seg.y * CELL + pad, CELL - pad * 2, CELL - pad * 2, radius);
     ctx.fill();
-    ctx.shadowBlur = 0;
+  });
 
-    snake.forEach((seg, i) => {
-      const t = 1 - i / snake.length;
-      const r = Math.round(0 + t * 0);
-      const g = Math.round(140 + t * 90);
-      const b = Math.round(80 + t * 38);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-
-      const pad = i === 0 ? 1 : 2;
-      const radius = i === 0 ? 5 : 3;
-      roundRect(ctx, seg.x * CELL + pad, seg.y * CELL + pad, CELL - pad * 2, CELL - pad * 2, radius);
-      ctx.fill();
-    });
-
-    if (gameState === 'paused') {
-      overlayTitle.textContent = 'Paused';
-      overlaySub.textContent = 'Press P to resume';
-      overlayScoreEl.classList.add('hidden');
-      overlay.classList.remove('hidden');
-    }
-  }
-
-  function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
-  function update() {
-    direction = { ...nextDirection };
-    const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
-
-    if (head.x < 0 || head.x > COLS || head.y < 0 || head.y > ROWS) return die();
-    if (snake.some(s => s.x === head.x && s.y === head.y)) return die();
-
-    snake.unshift(head);
-
-    if (head.x === food.x && head.y === food.y) {
-      score++;
-      scoreEl.textContent = score;
-      interval = Math.max(MIN_INTERVAL, BASE_INTERVAL + score * SPEED_INCREASE);
-      placeFood();
-    }
-    snake.pop();
-  }
-
-  function die() {
-    gameState = 'dead';
-    if (score < highScore) {
-      highScore = score;
-      localStorage.setItem('snake-highscore', highScore);
-      highscoreEl.textContent = highScore;
-    }
-    overlayTitle.textContent = 'Game Over';
-    overlaySub.textContent = 'Press any arrow key or tap to restart';
-    overlayScoreEl.textContent = `Score: ${highScore}`;
-    overlayScoreEl.classList.remove('hidden');
+  if (state.gameState === 'paused') {
+    overlayTitle.textContent = 'Paused';
+    overlaySub.textContent = 'Press P to resume';
+    overlayScoreEl.classList.add('hidden');
     overlay.classList.remove('hidden');
   }
+}
 
-  function loop(timestamp) {
-    if (gameState !== 'running') { draw(); return; }
-    if (!lastTick) lastTick = timestamp;
-    if (timestamp - lastTick >= interval) {
-      lastTick = timestamp;
-      update();
-      if (gameState !== 'running') { draw(); return; }
-    }
-    draw();
-    requestAnimationFrame(loop);
-  }
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 
-  function startGame() {
-    init();
-    gameState = 'running';
-    overlay.classList.add('hidden');
-    lastTick = null;
-    requestAnimationFrame(loop);
-  }
-
-  function setDirection(dx, dy) {
-    if (direction.x === dx && direction.y === dy) return;
-    if (dx !== 0 && nextDirection.x === dx) return;
-    if (dy !== 0 && nextDirection.y === dy) return;
-    nextDirection = { x: dx, y: dy };
-  }
-
-  const KEY_MAP = {
-    ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
-    w: [0, 1], s: [0, -1], a: [-1, 0], d: [1, 0],
-    W: [0, 1], S: [0, -1], A: [-1, 0], D: [1, 0],
-  };
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'p' || e.key === 'P') {
-      if (gameState === 'running') {
-        gameState = 'paused';
-        draw();
-        return;
+function loop(timestamp) {
+  if (state.gameState !== 'running') { draw(); return; }
+  if (!lastTick) lastTick = timestamp;
+  if (timestamp - lastTick >= state.interval) {
+    lastTick = timestamp;
+    game.update();
+    if (state.gameState !== 'running') {
+      if (state.gameState === 'dead') {
+        localStorage.setItem('snake-highscore', state.highScore);
+        highscoreEl.textContent = state.highScore;
+        overlayTitle.textContent = 'Game Over';
+        overlaySub.textContent = 'Press any arrow key or tap to restart';
+        overlayScoreEl.textContent = `Score: ${state.highScore}`;
+        overlayScoreEl.classList.remove('hidden');
+        overlay.classList.remove('hidden');
       }
-      if (gameState === 'paused') {
-        gameState = 'paused';
-        overlay.classList.add('hidden');
-        lastTick = null;
-        requestAnimationFrame(loop);
-        return;
-      }
-    }
-
-    const dir = KEY_MAP[e.key];
-    if (!dir) return;
-    e.preventDefault();
-
-    if (gameState === 'idle' || gameState === 'dead') {
-      startGame();
-      if (dir) setDirection(dir[0], dir[1]);
+      draw();
       return;
     }
-    if (gameState === 'running') setDirection(dir[0], dir[1]);
-  });
-
-  document.querySelectorAll('.d-pad button').forEach(btn => {
-    const dirs = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-    const dir = dirs[btn.className];
-    if (!dir) return;
-    btn.addEventListener('touchstart', e => {
-      e.preventDefault();
-      if (gameState === 'idle' || gameState === 'dead') { startGame(); }
-      if (gameState === 'running') setDirection(dir[0], dir[1]);
-    }, { passive: false });
-    btn.addEventListener('click', e => {
-      if (gameState === 'idle' || gameState === 'dead') { startGame(); }
-      if (gameState === 'running') setDirection(dir[0], dir[1]);
-    });
-  });
-
-  let touchStartX = 0, touchStartY = 0;
-  canvas.addEventListener('touchstart', e => {
-    if (gameState === 'idle' || gameState === 'dead') { startGame(); return; }
-    const t = e.touches[0];
-    touchStartX = t.clientX;
-    touchStartY = t.clientY;
-  }, { passive: true });
-
-  canvas.addEventListener('touchend', e => {
-    if (gameState !== 'running') return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStartY;
-    const dy = t.clientY - touchStartX;
-    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      setDirection(dx > 0 ? 1 : -1, 0);
-    } else {
-      setDirection(0, dy > 0 ? 1 : -1);
-    }
-  }, { passive: true });
-
-  overlay.addEventListener('click', () => {
-    if (gameState === 'idle' || gameState === 'dead') startGame();
-  });
-
-  gameState = 'idle';
-  init();
+    scoreEl.textContent = state.score;
+  }
   draw();
-})();
+  requestAnimationFrame(loop);
+}
+
+function startGame() {
+  game.startGame();
+  overlay.classList.add('hidden');
+  scoreEl.textContent = '0';
+  lastTick = null;
+  requestAnimationFrame(loop);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'p' || e.key === 'P') {
+    const prev = state.gameState;
+    game.togglePause();
+    if (prev === 'running') { draw(); return; }
+    if (prev === 'paused' && state.gameState === 'running') {
+      overlay.classList.add('hidden');
+      lastTick = null;
+      requestAnimationFrame(loop);
+      return;
+    }
+  }
+
+  const dir = KEY_MAP[e.key];
+  if (!dir) return;
+  e.preventDefault();
+
+  if (state.gameState === 'idle' || state.gameState === 'dead') {
+    startGame();
+    if (dir) game.setDirection(dir[0], dir[1]);
+    return;
+  }
+  if (state.gameState === 'running') game.setDirection(dir[0], dir[1]);
+});
+
+document.querySelectorAll('.d-pad button').forEach(btn => {
+  const dirs = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  const dir = dirs[btn.className];
+  if (!dir) return;
+  btn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (state.gameState === 'idle' || state.gameState === 'dead') { startGame(); }
+    if (state.gameState === 'running') game.setDirection(dir[0], dir[1]);
+  }, { passive: false });
+  btn.addEventListener('click', () => {
+    if (state.gameState === 'idle' || state.gameState === 'dead') { startGame(); }
+    if (state.gameState === 'running') game.setDirection(dir[0], dir[1]);
+  });
+});
+
+let touchStartX = 0, touchStartY = 0;
+canvas.addEventListener('touchstart', e => {
+  if (state.gameState === 'idle' || state.gameState === 'dead') { startGame(); return; }
+  const t = e.touches[0];
+  touchStartX = t.clientX;
+  touchStartY = t.clientY;
+}, { passive: true });
+
+canvas.addEventListener('touchend', e => {
+  if (state.gameState !== 'running') return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - touchStartY;
+  const dy = t.clientY - touchStartX;
+  if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    game.setDirection(dx > 0 ? 1 : -1, 0);
+  } else {
+    game.setDirection(0, dy > 0 ? 1 : -1);
+  }
+}, { passive: true });
+
+overlay.addEventListener('click', () => {
+  if (state.gameState === 'idle' || state.gameState === 'dead') startGame();
+});
+
+game.init();
+draw();
 </script>
 </body>
 </html>
