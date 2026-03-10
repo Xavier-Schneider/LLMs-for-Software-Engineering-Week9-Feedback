@@ -134,7 +134,7 @@ The LLM generates tests for the scripts. At least one of the tests fail outright
 
 ### 3. New and Updated Guidelines that worked for Problem B
 
-#### Guideline #7: Combine Counterexample-First Prompting with a human-in-the-loop to guide the LLM towards test that pass  
+#### Guideline #7: Combine Counterexample-First Prompting with a Human-in-the-Loop to Guide the LLM Towards Tests That Pass  
 **Guideline Definition**  
 
 Instruct the LLM to write tests for the code and fix the bugs that it finds. First ask the model to propose plausible wrong variants and minimal counterexamples. Then generate tests that pass for the intended contract and would fail for each wrong variant. Next, run the application in the browser. If issues persist, tell the LLM to fix the issue by first writing a test to verify the issue exists, and then writing code to make the test pass. This process ensures that you not only have working code, but you have tests to back it up. Anytime new code is added to the codebase, the existing tests will run to make sure that previous bugs fixed in the past are still working correctly with the newly added code.
