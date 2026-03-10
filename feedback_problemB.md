@@ -156,7 +156,7 @@ Using the table above, write node assert unit tests such that:
 1) they pass for the intended contract, and  
 2) each test would fail for its corresponding wrong_variant.
 
-Update the code to make any failing tests pass
+Update the code to make any failing tests pass. First write and run the test to verify the issue exists, and then write code to make the test pass.
 
 Example Follow-Up Prompt (if application is still not working):  
 
