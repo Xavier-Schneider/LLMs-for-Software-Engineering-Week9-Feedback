@@ -5,6 +5,14 @@
 **Task Description:**  
 In this task, you are given a snake game to work with. Unfortunately, the code is littered with bugs and thus, won't run properly. Your job is to fix to these bugs to create a workable snake game.
 
+To run the application, you must first spin up a local web server. You can do this using Python:
+```
+cd ProblemB
+python3 -m http.server 8000
+```
+
+You can then see the application running in the browser by visiting the URL: http://localhost:8000/snake.html
+
 **Starter Code:**  
 https://github.com/Xavier-Schneider/LLMs-for-Software-Engineering-Week9-Feedback/tree/main/ProblemB
 
