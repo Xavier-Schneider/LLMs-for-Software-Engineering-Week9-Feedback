@@ -35,7 +35,7 @@ Step 1:
 Prompt:  
 You are helping me write discriminative node assert unit tests.  
 Target: snake.js  
-Task: list 8-10 plausible wrong variants that are easy to accidentally implement. For each wrong variant, provide the smallest counterexample inputs that would expose it.  
+Task: list 4-6 plausible wrong variants that are easy to accidentally implement. For each wrong variant, provide the smallest counterexample inputs that would expose it.  
 Return a table: wrong_variant | symptom | counterexample_inputs
 
 Step 2:  
