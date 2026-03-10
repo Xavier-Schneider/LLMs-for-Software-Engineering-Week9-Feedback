@@ -196,7 +196,7 @@
 </div>
 
 <script type="module">
-import { createGame, KEY_MAP } from './snake.js';
+import { createGame, KEY_MAP } from './game.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -355,8 +355,8 @@ canvas.addEventListener('touchstart', e => {
 canvas.addEventListener('touchend', e => {
   if (state.gameState !== 'running') return;
   const t = e.changedTouches[0];
-  const dx = t.clientX - touchStartY;
-  const dy = t.clientY - touchStartX;
+  const dx = t.clientX - touchStartX;
+  const dy = t.clientY - touchStartY;
   if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
   if (Math.abs(dx) > Math.abs(dy)) {
     game.setDirection(dx > 0 ? 1 : -1, 0);
