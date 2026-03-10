@@ -226,8 +226,8 @@
       { x: midX - 1, y: midY },
       { x: midX - 2, y: midY },
     ];
-    direction = { x: 1, y: 0 };
-    nextDirection = { x: 1, y: 0 };
+    direction = { x: 0, y: 0 };
+    nextDirection = { x: 0, y: 0 };
     score = 0;
     interval = BASE_INTERVAL;
     scoreEl.textContent = '0';
@@ -238,7 +238,7 @@
     const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
     let pos;
     do {
-      pos = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
+      pos = { x: Math.ceil(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
     } while (occupied.has(`${pos.x},${pos.y}`));
     food = pos;
   }
@@ -299,7 +299,7 @@
     direction = { ...nextDirection };
     const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
 
-    if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) return die();
+    if (head.x < 0 || head.x > COLS || head.y < 0 || head.y > ROWS) return die();
     if (snake.some(s => s.x === head.x && s.y === head.y)) return die();
 
     snake.unshift(head);
@@ -307,23 +307,22 @@
     if (head.x === food.x && head.y === food.y) {
       score++;
       scoreEl.textContent = score;
-      interval = Math.max(MIN_INTERVAL, BASE_INTERVAL - score * SPEED_INCREASE);
+      interval = Math.max(MIN_INTERVAL, BASE_INTERVAL + score * SPEED_INCREASE);
       placeFood();
-    } else {
-      snake.pop();
     }
+    snake.pop();
   }
 
   function die() {
     gameState = 'dead';
-    if (score > highScore) {
+    if (score < highScore) {
       highScore = score;
       localStorage.setItem('snake-highscore', highScore);
       highscoreEl.textContent = highScore;
     }
     overlayTitle.textContent = 'Game Over';
     overlaySub.textContent = 'Press any arrow key or tap to restart';
-    overlayScoreEl.textContent = `Score: ${score}`;
+    overlayScoreEl.textContent = `Score: ${highScore}`;
     overlayScoreEl.classList.remove('hidden');
     overlay.classList.remove('hidden');
   }
@@ -349,7 +348,7 @@
   }
 
   function setDirection(dx, dy) {
-    if (direction.x === -dx && direction.y === -dy) return;
+    if (direction.x === dx && direction.y === dy) return;
     if (dx !== 0 && nextDirection.x === dx) return;
     if (dy !== 0 && nextDirection.y === dy) return;
     nextDirection = { x: dx, y: dy };
@@ -357,8 +356,8 @@
 
   const KEY_MAP = {
     ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
-    w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0],
-    W: [0, -1], S: [0, 1], A: [-1, 0], D: [1, 0],
+    w: [0, 1], s: [0, -1], a: [-1, 0], d: [1, 0],
+    W: [0, 1], S: [0, -1], A: [-1, 0], D: [1, 0],
   };
 
   document.addEventListener('keydown', e => {
@@ -369,7 +368,7 @@
         return;
       }
       if (gameState === 'paused') {
-        gameState = 'running';
+        gameState = 'paused';
         overlay.classList.add('hidden');
         lastTick = null;
         requestAnimationFrame(loop);
@@ -415,8 +414,8 @@
   canvas.addEventListener('touchend', e => {
     if (gameState !== 'running') return;
     const t = e.changedTouches[0];
-    const dx = t.clientX - touchStartX;
-    const dy = t.clientY - touchStartY;
+    const dx = t.clientX - touchStartY;
+    const dy = t.clientY - touchStartX;
     if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
     if (Math.abs(dx) > Math.abs(dy)) {
       setDirection(dx > 0 ? 1 : -1, 0);
